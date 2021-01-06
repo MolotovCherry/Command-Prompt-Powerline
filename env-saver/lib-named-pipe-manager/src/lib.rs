@@ -339,6 +339,58 @@ impl PipeClient {
         Ok(())
     }
 
+    pub fn get_recv_timeout(&mut self) -> io::Result<Option<time::Duration>> {
+        if !self.connected {
+            Err(io::Error::new(ErrorKind::NotFound, "Initiate connect() before reading timeout"))?
+        }
+
+        let buffer = self.buffer.take().unwrap();
+        let timeout= buffer.get_ref().get_read_timeout();
+        self.buffer = Some(buffer);
+
+        Ok(timeout)
+    }
+
+    // set timeout for synchronous recv op
+    // None = Infinite
+    pub fn recv_timeout(&mut self, timeout: Option<time::Duration>) -> io::Result<()> {
+        if !self.connected {
+            Err(io::Error::new(ErrorKind::NotFound, "Initiate connect() before setting timeout"))?
+        }
+
+        let mut buffer = self.buffer.take().unwrap();
+        buffer.get_mut().set_read_timeout(timeout);
+        self.buffer = Some(buffer);
+
+        Ok(())
+    }
+
+    pub fn get_send_timeout(&mut self) -> io::Result<Option<time::Duration>> {
+        if !self.connected {
+            Err(io::Error::new(ErrorKind::NotFound, "Initiate connect() before reading timeout"))?
+        }
+
+        let buffer = self.buffer.take().unwrap();
+        let timeout= buffer.get_ref().get_write_timeout();
+        self.buffer = Some(buffer);
+
+        Ok(timeout)
+    }
+
+    // set timeout for synchronous send op
+    // None = Infinite
+    pub fn send_timeout(&mut self, timeout: Option<time::Duration>) -> io::Result<()> {
+        if !self.connected {
+            Err(io::Error::new(ErrorKind::NotFound, "Initiate connect() before setting timeout"))?
+        }
+
+        let mut buffer = self.buffer.take().unwrap();
+        buffer.get_mut().set_write_timeout(timeout);
+        self.buffer = Some(buffer);
+
+        Ok(())
+    }
+
     pub fn recv<T>(&mut self) -> io::Result<Option<T>>
         where T: DeserializeOwned
     {
