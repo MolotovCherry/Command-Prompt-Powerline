@@ -10,8 +10,7 @@ use std::path::PathBuf;
 #[derive(Deserialize)]
 enum Command {
     SaveEnv,
-    ReadEnv,
-    ReadCode
+    ReadEnv
 }
 
 #[derive(Debug)]
@@ -67,11 +66,6 @@ fn main() -> Result<(), io::Error> {
             .long("readenv")
             .about("Read the ENV info from server through <STDOUT>")
             .conflicts_with_all(&["exitcode", "saveenv", "readcode"]))
-        .arg(Arg::new("readcode")
-            .short('y')
-            .long("readcode")
-            .about("Read the ENV code from server through <STDOUT>")
-            .conflicts_with_all(&["exitcode", "saveenv", "readenv"]))
         .get_matches();
 
 
@@ -104,14 +98,11 @@ fn main() -> Result<(), io::Error> {
                 Command::ReadEnv => {
                     server.write(&server_data).unwrap();
                     server_data.env_vars = None;
+                    server_data.exit_code = None;
                 },
                 Command::SaveEnv => {
                     server_data.env_vars = Some(data.env_vars.unwrap());
                     server_data.exit_code = Some(data.exit_code.unwrap());
-                },
-                Command::ReadCode => {
-                    server.write(&server_data).unwrap();
-                    server_data.exit_code = None;
                 }
             }
 
@@ -146,13 +137,8 @@ fn main() -> Result<(), io::Error> {
             let server_data: EnvironmentData = client.read().unwrap().unwrap();
             // Got some data back!
             // if this fails do a silent fail (cause ctrl+c in terminal)
-            println!("{}", server_data.env_vars.unwrap_or("".to_string()));
-        } else if matches.is_present("readcode") {
-            client_data.command = Some(Command::ReadCode);
-            client.write(&client_data).unwrap();
-            let server_data: EnvironmentData = client.read().unwrap().unwrap();
-            // Got some data back!
-            println!("{}", server_data.exit_code.unwrap_or(0));
+
+            println!("{}\n{}", server_data.exit_code.unwrap_or(0), server_data.env_vars.unwrap_or("".to_string()));
         }
     }
 

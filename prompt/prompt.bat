@@ -52,15 +52,20 @@ if /I "!CMD:~0,2!"=="cd" (
     REM Nothing, can't execute no command
     goto infiniloop
 ) else (
+    REM remove variable so it won't be duplicated
+    set "CERRCODE="
     cmd /V:ON /c "!CMD! & set | !FINEXE! --client -i !PIPECODE! -e ^!errorlevel^! -s"
     REM get back subshell env and set env vars in this one
+    set /a count = 1
     for /f "delims=" %%F in ('%FINEXE% --client -i %PIPECODE% -r') do (
-        set "%%F"
-    )
-    
-    REM set our error code to other shells error code
-    for /f "delims=" %%A in ('%FINEXE% --client -i %PIPECODE% -y') do (
-        set "CERRCODE=%%A"
+        if "!count!"=="1" (
+            REM set error code
+            set "CERRCODE=%%F"
+        ) else (
+            REM set env variables
+            set "%%F"
+        )
+        set /a count += 1
     )
 )
 
