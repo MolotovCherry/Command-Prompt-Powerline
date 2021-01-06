@@ -37,6 +37,9 @@ REM Infinite loop to always replay powerline shell cmd
 REM powerline-go -shell bare -colorize-hostname -error %errorlevel% -newline
 powerline-go -shell bare -colorize-hostname -error %CERRCODE% -newline
 
+REM input the old vars first. This allows us to lower the amount of processing later
+set | %FINEXE% --client -i %PIPECODE% -o
+
 REM this sets errorlevel to 1 - don't know why, but we need to reset it, 
 REM not important anymore since I use my own code instead of errorlevel
 set /p CMD=

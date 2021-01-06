@@ -1,8 +1,9 @@
 use clap::{Arg, App};
-use std::{env, io::{self, Read}};
+use std::{collections::HashMap, env, io::{self, Read}};
 use named_pipe_manager::{PipeClient, PipeServer};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
+use itertools::Itertools;
 
 
 #[derive(Debug)]
@@ -10,7 +11,8 @@ use std::path::PathBuf;
 #[derive(Deserialize)]
 enum Command {
     SaveEnv,
-    ReadEnv
+    ReadEnv,
+    OldEnv
 }
 
 #[derive(Debug)]
@@ -34,7 +36,8 @@ fn main() -> Result<(), io::Error> {
                 "client",
                 "exitcode",
                 "saveenv",
-                "readenv"
+                "readenv",
+                "oldenv"
             ]))
         .arg(Arg::new("client")
             .long("client")
@@ -66,6 +69,11 @@ fn main() -> Result<(), io::Error> {
             .long("readenv")
             .about("Read the ENV info from server through <STDOUT>")
             .conflicts_with_all(&["exitcode", "saveenv", "readcode"]))
+        .arg(Arg::new("oldenv")
+            .short('o')
+            .long("oldenv")
+            .about("Save old environment info to send less data")
+            .conflicts_with_all(&["readcode", "readenv", "saveenv", "exitcode"]))
         .get_matches();
 
 
@@ -85,6 +93,9 @@ fn main() -> Result<(), io::Error> {
             exit_code: None,
             env_vars: None
         };
+
+        let mut oldEnv: Option<HashMap<String, String>> = None;
+
         println!("[Server listening on pipe: {}]", pipe_name);
         let mut server = PipeServer::new(pipe_name);
 
@@ -101,8 +112,52 @@ fn main() -> Result<(), io::Error> {
                     server_data.exit_code = None;
                 },
                 Command::SaveEnv => {
-                    server_data.env_vars = Some(data.env_vars.unwrap());
+                    let mut newEnv: HashMap<String, String> = HashMap::new();
+                    let envVars: String = data.env_vars.unwrap();
+
+                    let v = envVars.split("\r\n");
+                    for line in v {
+                        if line.len() != 0 {
+                            let (key, val) = line.splitn(2, "=").collect_tuple().unwrap();
+
+                            newEnv.insert(String::from(key), String::from(val));
+                        }
+                    }
+
+                    let mut buf = String::new();
+                    let oT = oldEnv.take().unwrap();
+                    for (k, v) in &newEnv {
+                        // this is a new key
+                        if !oT.contains_key(k) {
+                            buf.push_str(&*format!("{}={}\n", k, v));
+                        }
+                        // this is a key is the same but was modified
+                        else if oT.get(k).unwrap() != v {
+                            buf.push_str(&*format!("{}={}\n", k, v));
+                        }
+                    }
+                    // remove excess newlines
+                    let buf = buf.trim_end().to_string();
+
+                    oldEnv = None;
+                    
+                    server_data.env_vars = Some(buf);
                     server_data.exit_code = Some(data.exit_code.unwrap());
+                },
+                Command::OldEnv => {
+                    let mut oldVars: HashMap<String, String> = HashMap::new();
+                    let envVars: String = data.env_vars.unwrap();
+
+                    let v = envVars.split("\r\n");
+                    for line in v {
+                        if line.len() != 0 {
+                            let (k, v) = line.splitn(2, "=").collect_tuple().unwrap();
+
+                            oldVars.insert(String::from(k), String::from(v));
+                        }
+                    }
+
+                    oldEnv = Some(oldVars);
                 }
             }
 
@@ -137,8 +192,16 @@ fn main() -> Result<(), io::Error> {
             let server_data: EnvironmentData = client.read().unwrap().unwrap();
             // Got some data back!
             // if this fails do a silent fail (cause ctrl+c in terminal)
-
             println!("{}\n{}", server_data.exit_code.unwrap_or(0), server_data.env_vars.unwrap_or("".to_string()));
+        } else if matches.is_present("oldenv") {
+            client_data.command = Some(Command::OldEnv);
+
+            let mut buffer = String::new();
+            let mut stdin = io::stdin();
+            stdin.read_to_string(&mut buffer)?;
+
+            client_data.env_vars = Some(buffer);
+            client.write(&client_data).unwrap();
         }
     }
 
