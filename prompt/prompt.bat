@@ -43,7 +43,6 @@ set /p CMD=
 
 REM filter out some local commands
 if "!CMD!"=="exit" (
-    REM TODO: Get track of server PID and kill it here
     exit
 )
 
