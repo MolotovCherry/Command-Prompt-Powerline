@@ -37,8 +37,13 @@ REM Infinite loop to always replay powerline shell cmd
 REM powerline-go -shell bare -colorize-hostname -error %errorlevel% -newline
 powerline-go -shell bare -colorize-hostname -error %CERRCODE% -newline
 
+REM Clear CMD in case we re-enter
+set CMD=
+REM remove variable so it won't be duplicated in env (and saved over)
+set CERRCODE=
 REM input the old vars first. This allows us to lower the amount of processing later
-set | %FINEXE% --client -i %PIPECODE% -o
+REM Using start to allow simultaneous background processing
+start /min /b "" cmd /c "set | %FINEXE% --client -i %PIPECODE% -o"
 
 REM this sets errorlevel to 1 - don't know why, but we need to reset it, 
 REM not important anymore since I use my own code instead of errorlevel
@@ -55,24 +60,12 @@ if /I "!CMD:~0,2!"=="cd" (
     REM Nothing, can't execute no command
     goto infiniloop
 ) else (
-    REM remove variable so it won't be duplicated
-    set "CERRCODE="
     cmd /V:ON /c "!CMD! & set | !FINEXE! --client -i !PIPECODE! -e ^!errorlevel^! -s"
     REM get back subshell env and set env vars in this one
-    set /a count = 1
     for /f "delims=" %%F in ('%FINEXE% --client -i %PIPECODE% -r') do (
-        if "!count!"=="1" (
-            REM set error code
-            set "CERRCODE=%%F"
-        ) else (
-            REM set env variables
-            set "%%F"
-        )
-        set /a count += 1
+        REM set env variables
+        set "%%F"
     )
 )
-
-REM Clear CMD in case we re-enter
-set CMD=
 
 goto infiniloop

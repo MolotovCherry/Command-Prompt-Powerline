@@ -170,7 +170,7 @@ impl PipeServer {
         Ok(())
     }
 
-    pub fn read<T>(&mut self) -> io::Result<Option<T>>
+    pub fn recv<T>(&mut self) -> io::Result<Option<T>>
         where T: DeserializeOwned
     {
         if self.buffer.is_none() {
@@ -200,7 +200,7 @@ impl PipeServer {
         }
     }
 
-    pub fn write<T: ?Sized>(&mut self, data: &T) -> io::Result<()>
+    pub fn send<T: ?Sized>(&mut self, data: &T) -> io::Result<()>
         where T: Serialize
     {
         if self.buffer.is_none() {
@@ -270,7 +270,7 @@ impl PipeClient {
         Ok(())
     }
 
-    pub fn read<T>(&mut self) -> io::Result<Option<T>>
+    pub fn recv<T>(&mut self) -> io::Result<Option<T>>
         where T: DeserializeOwned
     {
         if !self.connected {
@@ -294,7 +294,7 @@ impl PipeClient {
         }
     }
 
-    pub fn write<T: ?Sized>(&mut self, data: &T) -> io::Result<()>
+    pub fn send<T: ?Sized>(&mut self, data: &T) -> io::Result<()>
         where T: Serialize
     {
         if !self.connected {
