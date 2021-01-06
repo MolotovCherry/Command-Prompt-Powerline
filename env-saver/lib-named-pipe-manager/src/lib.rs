@@ -69,7 +69,7 @@ impl PipeServer {
 
     pub fn get_recv_timeout(&mut self) -> io::Result<Option<time::Duration>> {
         if self.buffer.is_none() {
-            return Err(io::Error::new(ErrorKind::NotFound, "Initiate wait() before reading timeout"));
+            Err(io::Error::new(ErrorKind::NotFound, "Initiate wait() before reading timeout"))?
         }
 
         let buffer = self.buffer.take().unwrap();
@@ -83,7 +83,7 @@ impl PipeServer {
     // None = Infinite
     pub fn recv_timeout(&mut self, timeout: Option<time::Duration>) -> io::Result<()> {
         if self.buffer.is_none() {
-            return Err(io::Error::new(ErrorKind::NotFound, "Initiate wait() before setting timeout"));
+            Err(io::Error::new(ErrorKind::NotFound, "Initiate wait() before setting timeout"))?
         }
 
         let mut buffer = self.buffer.take().unwrap();
@@ -95,7 +95,7 @@ impl PipeServer {
 
     pub fn get_send_timeout(&mut self) -> io::Result<Option<time::Duration>> {
         if self.buffer.is_none() {
-            return Err(io::Error::new(ErrorKind::NotFound, "Initiate wait() before reading timeout"));
+            Err(io::Error::new(ErrorKind::NotFound, "Initiate wait() before reading timeout"))?
         }
 
         let buffer = self.buffer.take().unwrap();
@@ -109,7 +109,7 @@ impl PipeServer {
     // None = Infinite
     pub fn send_timeout(&mut self, timeout: Option<time::Duration>) -> io::Result<()> {
         if self.buffer.is_none() {
-            return Err(io::Error::new(ErrorKind::NotFound, "Initiate wait() before setting timeout"));
+            Err(io::Error::new(ErrorKind::NotFound, "Initiate wait() before setting timeout"))?
         }
 
         let mut buffer = self.buffer.take().unwrap();
@@ -144,13 +144,13 @@ impl PipeServer {
         if !self.started_server {
             self.connecting_server = match self.pipe_options.single() {
                 Ok(c) => Some(c),
-                _ => return Err(Error::new(ErrorKind::Other, "Failed to start server"))
+                _ => Err(Error::new(ErrorKind::Other, "Failed to start server"))?
             };
 
             self.started_server = true;
             Ok(())
         } else {
-            Err(Error::new(ErrorKind::AlreadyExists, "Server already exists. Use clone() to make new one"))
+            Err(Error::new(ErrorKind::AlreadyExists, "Server already exists. Use clone() to make new one"))?
         }
     }
 
@@ -159,13 +159,13 @@ impl PipeServer {
     // It will move self to the resulting Vec
     pub fn start_multiple(mut self, num: u32) -> io::Result<Vec<PipeServer>> {
         if self.started_server {
-            return Err(Error::new(ErrorKind::AlreadyExists, "Server already exists. Use clone() to make new one"));
+            Err(Error::new(ErrorKind::AlreadyExists, "Server already exists. Use clone() to make new one"))?
         }
 
         // 1 less because we're also putting this server into it at the end
         let servers = match self.pipe_options.multiple(num-1) {
             Ok(c) => c,
-            _ => return Err(Error::new(ErrorKind::Other, "Failed to start server"))
+            _ => Err(Error::new(ErrorKind::Other, "Failed to start server"))?
         };
 
         let mut pipeservers: Vec<PipeServer> = Vec::new();
@@ -202,7 +202,7 @@ impl PipeServer {
 
     pub fn wait(&mut self) -> io::Result<()> {
         if self.connecting_server.is_none() {
-            return Err(Error::new(ErrorKind::NotConnected,"Did you start() it yet?"));
+            Err(Error::new(ErrorKind::NotConnected,"Did you start() it yet?"))?
         }
 
         let pipe_server = self.connecting_server.take().unwrap().wait().unwrap();
@@ -213,7 +213,7 @@ impl PipeServer {
 
     pub fn wait_ms(&mut self, timeout: u32) -> io::Result<()> {
         if self.connecting_server.is_none() {
-            return Err(Error::new(ErrorKind::NotConnected,"Did you start() it yet?"));
+            Err(Error::new(ErrorKind::NotConnected,"Did you start() it yet?"))?
         }
 
         let res = self.connecting_server.take().unwrap().wait_ms(timeout);
@@ -230,7 +230,7 @@ impl PipeServer {
             },
             Err(e) => {
                 // connecting server returned
-                return Err(e);
+                Err(e)?
             }
         }
 
@@ -242,7 +242,7 @@ impl PipeServer {
         where T: DeserializeOwned
     {
         if self.buffer.is_none() {
-            return Err(Error::new(ErrorKind::NotFound, "Need to start() the server and wait()"));
+            Err(Error::new(ErrorKind::NotFound, "Need to start() the server and wait()"))?
         }
 
         // take ownership cause we need it for the buffer write
@@ -253,7 +253,7 @@ impl PipeServer {
 
         // this will probably never trigger, cause input buffer would've already limited it
         if buf.len() > self.in_buffer {
-            return Err(io::Error::new(ErrorKind::InvalidData, "Read buffer size exceeded limits"));
+            Err(io::Error::new(ErrorKind::InvalidData, "Read buffer size exceeded limits"))?
         }
 
         if n > 0 {
@@ -273,7 +273,7 @@ impl PipeServer {
         where T: Serialize
     {
         if self.buffer.is_none() {
-            return Err(Error::new(ErrorKind::NotFound, "Need to start() the server and wait()"));
+            Err(Error::new(ErrorKind::NotFound, "Need to start() the server and wait()"))?
         }
 
         // take ownership cause we need it for the buffer write
@@ -283,7 +283,7 @@ impl PipeServer {
         buf.push('\n');
 
         if buf.len() > self.out_buffer {
-            return Err(io::Error::new(ErrorKind::InvalidData, "Write buffer size exceeded limits"));
+            Err(io::Error::new(ErrorKind::InvalidData, "Write buffer size exceeded limits"))?
         }
 
         stream.write_all(buf.as_bytes())?;
@@ -318,7 +318,7 @@ impl PipeClient {
     pub fn connect(&mut self) -> io::Result<()> {
         let client = match _PipeClient::connect(&self.name) {
             Ok(c) => c,
-            Err(e) => return Err(e)
+            Err(e) => Err(e)?
         };
 
         self.buffer = Some(BufStream::new(client));
@@ -330,7 +330,7 @@ impl PipeClient {
     pub fn connect_ms(&mut self, timeout: u32) -> io::Result<()> {
         let client = match _PipeClient::connect_ms(&self.name, timeout) {
             Ok(c) => c,
-            Err(e) => return Err(e)
+            Err(e) => Err(e)?
         };
 
         self.buffer = Some(BufStream::new(client));
@@ -343,7 +343,7 @@ impl PipeClient {
         where T: DeserializeOwned
     {
         if !self.connected {
-            return Err(Error::new(ErrorKind::NotFound, "Need to connect() to the server first"));
+            Err(Error::new(ErrorKind::NotFound, "Need to connect() to the server first"))?
         }
 
         // take ownership cause we need it for the buffer write
@@ -367,7 +367,7 @@ impl PipeClient {
         where T: Serialize
     {
         if !self.connected {
-            return Err(Error::new(ErrorKind::NotFound, "Need to connect() to the server first"));
+            Err(Error::new(ErrorKind::NotFound, "Need to connect() to the server first"))?
         }
 
         // take ownership cause we need it for the buffer write
