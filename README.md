@@ -18,3 +18,5 @@ Powerline Support for good old Command Prompt! Requires Windows Terminal
  
  `set ENVPATH=C:\Path\To\prompt-powerline\`
 
+### Known Issues
+- Ctrl+C will crash the shell
