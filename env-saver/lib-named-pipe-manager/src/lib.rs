@@ -2,7 +2,8 @@ use named_pipe::{
     ConnectingServer,
     PipeClient as _PipeClient,
     PipeOptions,
-    PipeServer as _PipeServer
+    PipeServer as _PipeServer,
+    WriteHandle, ReadHandle
 };
 use std::convert::TryFrom;
 use std::{io, time};
@@ -69,7 +70,7 @@ impl PipeServer {
 
     pub fn get_recv_timeout(&mut self) -> io::Result<Option<time::Duration>> {
         if self.buffer.is_none() {
-            Err(io::Error::new(ErrorKind::NotFound, "Initiate wait() before reading timeout"))?
+            panic!("Initiate wait() before reading timeout")
         }
 
         let buffer = self.buffer.take().unwrap();
@@ -83,7 +84,7 @@ impl PipeServer {
     // None = Infinite
     pub fn recv_timeout(&mut self, timeout: Option<time::Duration>) -> io::Result<()> {
         if self.buffer.is_none() {
-            Err(io::Error::new(ErrorKind::NotFound, "Initiate wait() before setting timeout"))?
+            panic!("Initiate wait() before setting timeout")
         }
 
         let mut buffer = self.buffer.take().unwrap();
@@ -95,7 +96,7 @@ impl PipeServer {
 
     pub fn get_send_timeout(&mut self) -> io::Result<Option<time::Duration>> {
         if self.buffer.is_none() {
-            Err(io::Error::new(ErrorKind::NotFound, "Initiate wait() before reading timeout"))?
+            panic!("Initiate wait() before reading timeout")
         }
 
         let buffer = self.buffer.take().unwrap();
@@ -109,7 +110,7 @@ impl PipeServer {
     // None = Infinite
     pub fn send_timeout(&mut self, timeout: Option<time::Duration>) -> io::Result<()> {
         if self.buffer.is_none() {
-            Err(io::Error::new(ErrorKind::NotFound, "Initiate wait() before setting timeout"))?
+            panic!("Initiate wait() before setting timeout")
         }
 
         let mut buffer = self.buffer.take().unwrap();
@@ -150,7 +151,7 @@ impl PipeServer {
             self.started_server = true;
             Ok(())
         } else {
-            Err(Error::new(ErrorKind::AlreadyExists, "Server already exists. Use clone() to make new one"))?
+            panic!("Server already exists. Use clone() to make new one")
         }
     }
 
@@ -159,7 +160,7 @@ impl PipeServer {
     // It will move self to the resulting Vec
     pub fn start_multiple(mut self, num: u32) -> io::Result<Vec<PipeServer>> {
         if self.started_server {
-            Err(Error::new(ErrorKind::AlreadyExists, "Server already exists. Use clone() to make new one"))?
+            panic!("Server already exists. Use clone() to make new one")
         }
 
         // 1 less because we're also putting this server into it at the end
@@ -202,7 +203,7 @@ impl PipeServer {
 
     pub fn wait(&mut self) -> io::Result<()> {
         if self.connecting_server.is_none() {
-            Err(Error::new(ErrorKind::NotConnected,"Did you start() it yet?"))?
+            panic!("No connecting server. Did you start() it yet?")
         }
 
         let pipe_server = self.connecting_server.take().unwrap().wait().unwrap();
@@ -213,7 +214,7 @@ impl PipeServer {
 
     pub fn wait_ms(&mut self, timeout: u32) -> io::Result<()> {
         if self.connecting_server.is_none() {
-            Err(Error::new(ErrorKind::NotConnected,"Did you start() it yet?"))?
+            panic!("No connecting server. Did you start() it yet?")
         }
 
         let res = self.connecting_server.take().unwrap().wait_ms(timeout);
@@ -242,7 +243,7 @@ impl PipeServer {
         where T: DeserializeOwned
     {
         if self.buffer.is_none() {
-            Err(Error::new(ErrorKind::NotFound, "Need to start() the server and wait()"))?
+            panic!("Need to start() the server and wait()")
         }
 
         // take ownership cause we need it for the buffer write
@@ -273,7 +274,7 @@ impl PipeServer {
         where T: Serialize
     {
         if self.buffer.is_none() {
-            Err(Error::new(ErrorKind::NotFound, "Need to start() the server and wait()"))?
+            panic!("Need to start() the server and wait()")
         }
 
         // take ownership cause we need it for the buffer write
@@ -293,6 +294,31 @@ impl PipeServer {
         // give ownership back
         self.buffer = Some(stream);
         Ok(())
+    }
+
+    pub fn recv_async_owned(mut self, buf: Vec<u8>) -> io::Result<ReadHandle<'static, _PipeServer>>
+    {
+        if self.buffer.is_none() {
+            panic!("Need to start() the server and wait() first")
+        }
+
+        // take ownership cause we need it for the buffer write
+        let server = self.buffer.take().unwrap().into_inner().unwrap();
+        //self.buffer = Some(BufStream::new(client));
+        Ok(server.read_async_owned(buf)?)
+    }
+
+    pub fn send_async_owned<T: ?Sized>(mut self, buf: Vec<u8>) -> io::Result<WriteHandle<'static, _PipeServer>>
+        where T: Serialize
+    {
+        if self.buffer.is_none() {
+            panic!("Need to connect() first")
+        }
+
+        // take ownership cause we need it for the buffer write
+        let server = self.buffer.take().unwrap().into_inner().unwrap();
+        //self.buffer = Some(BufStream::new(client));
+        Ok(server.write_async_owned(buf)?)
     }
 }
 
@@ -341,7 +367,7 @@ impl PipeClient {
 
     pub fn get_recv_timeout(&mut self) -> io::Result<Option<time::Duration>> {
         if !self.connected {
-            Err(io::Error::new(ErrorKind::NotFound, "Initiate connect() before reading timeout"))?
+            panic!("Initiate connect() before reading timeout")
         }
 
         let buffer = self.buffer.take().unwrap();
@@ -355,7 +381,7 @@ impl PipeClient {
     // None = Infinite
     pub fn recv_timeout(&mut self, timeout: Option<time::Duration>) -> io::Result<()> {
         if !self.connected {
-            Err(io::Error::new(ErrorKind::NotFound, "Initiate connect() before setting timeout"))?
+            panic!("Initiate connect() before setting timeout")
         }
 
         let mut buffer = self.buffer.take().unwrap();
@@ -367,7 +393,7 @@ impl PipeClient {
 
     pub fn get_send_timeout(&mut self) -> io::Result<Option<time::Duration>> {
         if !self.connected {
-            Err(io::Error::new(ErrorKind::NotFound, "Initiate connect() before reading timeout"))?
+            panic!("Initiate connect() before reading timeout")
         }
 
         let buffer = self.buffer.take().unwrap();
@@ -381,7 +407,7 @@ impl PipeClient {
     // None = Infinite
     pub fn send_timeout(&mut self, timeout: Option<time::Duration>) -> io::Result<()> {
         if !self.connected {
-            Err(io::Error::new(ErrorKind::NotFound, "Initiate connect() before setting timeout"))?
+            panic!("Initiate connect() before setting timeout")
         }
 
         let mut buffer = self.buffer.take().unwrap();
@@ -395,7 +421,7 @@ impl PipeClient {
         where T: DeserializeOwned
     {
         if !self.connected {
-            Err(Error::new(ErrorKind::NotFound, "Need to connect() to the server first"))?
+            panic!("Need to connect() to the server first")
         }
 
         // take ownership cause we need it for the buffer write
@@ -419,7 +445,7 @@ impl PipeClient {
         where T: Serialize
     {
         if !self.connected {
-            Err(Error::new(ErrorKind::NotFound, "Need to connect() to the server first"))?
+            panic!("Need to connect() to the server first")
         }
 
         // take ownership cause we need it for the buffer write
@@ -435,6 +461,31 @@ impl PipeClient {
         // give ownership back
         self.buffer = Some(stream);
         Ok(())
+    }
+
+    pub fn recv_async_owned(mut self, buf: Vec<u8>) -> io::Result<ReadHandle<'static, _PipeClient>>
+    {
+        if !self.connected {
+            panic!("Need to connect() to the server first")
+        }
+
+        // take ownership cause we need it for the buffer write
+        let client = self.buffer.take().unwrap().into_inner().unwrap();
+        //self.buffer = Some(BufStream::new(client));
+        Ok(client.read_async_owned(buf)?)
+    }
+
+    pub fn send_async_owned<T: ?Sized>(mut self, buf: Vec<u8>) -> io::Result<WriteHandle<'static, _PipeClient>>
+        where T: Serialize
+    {
+        if !self.connected {
+            panic!("Need to connect() to the server first")
+        }
+
+        // take ownership cause we need it for the buffer write
+        let client = self.buffer.take().unwrap().into_inner().unwrap();
+        //self.buffer = Some(BufStream::new(client));
+        Ok(client.write_async_owned(buf)?)
     }
 }
 
