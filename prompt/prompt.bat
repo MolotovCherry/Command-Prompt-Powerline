@@ -56,8 +56,10 @@ if "!CMD!"=="exit" (
 
 if /I "!CMD:~0,2!"=="cd" (
     !CMD!
+    set CERRCODE=!errorlevel!
 ) else if /I "!CMD!"=="" (
     REM Nothing, can't execute no command
+    set CERRCODE=0
     goto infiniloop
 ) else (
     cmd /V:ON /c "!CMD! & set | !FINEXE! --client -i !PIPECODE! -e ^!errorlevel^! -s"
