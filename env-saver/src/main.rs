@@ -94,7 +94,7 @@ fn main() -> Result<(), io::Error> {
             env_vars: None
         };
 
-        let mut oldEnv: Option<HashMap<String, String>> = None;
+        let mut old_env: Option<HashMap<String, String>> = None;
 
         println!("[Server listening on pipe: {}]", pipe_name);
         let mut server = PipeServer::new(pipe_name);
@@ -112,52 +112,52 @@ fn main() -> Result<(), io::Error> {
                     server_data.exit_code = None;
                 },
                 Command::SaveEnv => {
-                    let mut newEnv: HashMap<String, String> = HashMap::new();
-                    let envVars: String = data.env_vars.unwrap();
+                    let mut new_env: HashMap<String, String> = HashMap::new();
+                    let env_vars: String = data.env_vars.unwrap();
 
-                    let v = envVars.split("\r\n");
+                    let v = env_vars.split("\r\n");
                     for line in v {
                         if line.len() != 0 {
                             let (key, val) = line.splitn(2, "=").collect_tuple().unwrap();
 
-                            newEnv.insert(String::from(key), String::from(val));
+                            new_env.insert(String::from(key), String::from(val));
                         }
                     }
 
                     let mut buf = String::new();
-                    let oT = oldEnv.take().unwrap();
-                    for (k, v) in &newEnv {
+                    let old_owned = old_env.take().unwrap();
+                    for (k, v) in &new_env {
                         // this is a new key
-                        if !oT.contains_key(k) {
+                        if !old_owned.contains_key(k) {
                             buf.push_str(&*format!("{}={}\n", k, v));
                         }
                         // this is a key is the same but was modified
-                        else if oT.get(k).unwrap() != v {
+                        else if old_owned.get(k).unwrap() != v {
                             buf.push_str(&*format!("{}={}\n", k, v));
                         }
                     }
                     // remove excess newlines
                     let buf = buf.trim_end().to_string();
 
-                    oldEnv = None;
+                    old_env = None;
                     
                     server_data.env_vars = Some(buf);
                     server_data.exit_code = Some(data.exit_code.unwrap());
                 },
                 Command::OldEnv => {
-                    let mut oldVars: HashMap<String, String> = HashMap::new();
-                    let envVars: String = data.env_vars.unwrap();
+                    let mut old_vars: HashMap<String, String> = HashMap::new();
+                    let env_vars: String = data.env_vars.unwrap();
 
-                    let v = envVars.split("\r\n");
+                    let v = env_vars.split("\r\n");
                     for line in v {
                         if line.len() != 0 {
                             let (k, v) = line.splitn(2, "=").collect_tuple().unwrap();
 
-                            oldVars.insert(String::from(k), String::from(v));
+                            old_vars.insert(String::from(k), String::from(v));
                         }
                     }
 
-                    oldEnv = Some(oldVars);
+                    old_env = Some(old_vars);
                 }
             }
 
