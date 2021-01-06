@@ -5,7 +5,7 @@ use named_pipe::{
     PipeServer as _PipeServer
 };
 use std::convert::TryFrom;
-use std::io;
+use std::{io, time};
 use bufstream::BufStream;
 pub use named_pipe::OpenMode;
 
@@ -65,6 +65,58 @@ impl PipeServer {
         self.pipe_options.out_buffer(val);
         self.out_buffer = usize::try_from(val).unwrap();
         self
+    }
+
+    pub fn get_recv_timeout(&mut self) -> io::Result<Option<time::Duration>> {
+        if self.buffer.is_none() {
+            return Err(io::Error::new(ErrorKind::NotFound, "Initiate wait() before reading timeout"));
+        }
+
+        let buffer = self.buffer.take().unwrap();
+        let timeout= buffer.get_ref().get_read_timeout();
+        self.buffer = Some(buffer);
+
+        Ok(timeout)
+    }
+
+    // set timeout for synchronous recv op
+    // None = Infinite
+    pub fn recv_timeout(&mut self, timeout: Option<time::Duration>) -> io::Result<()> {
+        if self.buffer.is_none() {
+            return Err(io::Error::new(ErrorKind::NotFound, "Initiate wait() before setting timeout"));
+        }
+
+        let mut buffer = self.buffer.take().unwrap();
+        buffer.get_mut().set_read_timeout(timeout);
+        self.buffer = Some(buffer);
+
+        Ok(())
+    }
+
+    pub fn get_send_timeout(&mut self) -> io::Result<Option<time::Duration>> {
+        if self.buffer.is_none() {
+            return Err(io::Error::new(ErrorKind::NotFound, "Initiate wait() before reading timeout"));
+        }
+
+        let buffer = self.buffer.take().unwrap();
+        let timeout= buffer.get_ref().get_write_timeout();
+        self.buffer = Some(buffer);
+
+        Ok(timeout)
+    }
+
+    // set timeout for synchronous send op
+    // None = Infinite
+    pub fn send_timeout(&mut self, timeout: Option<time::Duration>) -> io::Result<()> {
+        if self.buffer.is_none() {
+            return Err(io::Error::new(ErrorKind::NotFound, "Initiate wait() before setting timeout"));
+        }
+
+        let mut buffer = self.buffer.take().unwrap();
+        buffer.get_mut().set_write_timeout(timeout);
+        self.buffer = Some(buffer);
+
+        Ok(())
     }
 
     // Makes an identical clone to this one
@@ -164,12 +216,28 @@ impl PipeServer {
             return Err(Error::new(ErrorKind::NotConnected,"Did you start() it yet?"));
         }
 
-        let pipe_server = self.connecting_server.take().unwrap().wait_ms(timeout).unwrap().unwrap();
-        self.buffer = Some(BufStream::new(pipe_server));
+        let res = self.connecting_server.take().unwrap().wait_ms(timeout);
+        match res {
+            Ok(p) => {
+                match p {
+                    Ok(ps) => {
+                        self.buffer = Some(BufStream::new(ps));
+                    },
+                    Err(c) => {
+                        self.connecting_server = Some(c)
+                    }
+                }
+            },
+            Err(e) => {
+                // connecting server returned
+                return Err(e);
+            }
+        }
 
         Ok(())
     }
 
+    // synchronous receive method
     pub fn recv<T>(&mut self) -> io::Result<Option<T>>
         where T: DeserializeOwned
     {
@@ -200,6 +268,7 @@ impl PipeServer {
         }
     }
 
+    // synchronous send method
     pub fn send<T: ?Sized>(&mut self, data: &T) -> io::Result<()>
         where T: Serialize
     {
