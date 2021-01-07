@@ -296,8 +296,7 @@ impl PipeServer {
         Ok(())
     }
 
-    pub fn recv_async_owned(mut self, buf: Vec<u8>) -> io::Result<ReadHandle<'static, _PipeServer>>
-    {
+    pub fn recv_async_owned(mut self, buf: Vec<u8>) -> io::Result<ReadHandle<'static, _PipeServer>> {
         if self.buffer.is_none() {
             panic!("Need to start() the server and wait() first")
         }
@@ -308,9 +307,7 @@ impl PipeServer {
         Ok(server.read_async_owned(buf)?)
     }
 
-    pub fn send_async_owned<T: ?Sized>(mut self, buf: Vec<u8>) -> io::Result<WriteHandle<'static, _PipeServer>>
-        where T: Serialize
-    {
+    pub fn send_async_owned(mut self, buf: Vec<u8>) -> io::Result<WriteHandle<'static, _PipeServer>> {
         if self.buffer.is_none() {
             panic!("Need to connect() first")
         }
@@ -463,8 +460,7 @@ impl PipeClient {
         Ok(())
     }
 
-    pub fn recv_async_owned(mut self, buf: Vec<u8>) -> io::Result<ReadHandle<'static, _PipeClient>>
-    {
+    pub fn recv_async_owned(mut self, buf: Vec<u8>) -> io::Result<ReadHandle<'static, _PipeClient>> {
         if !self.connected {
             panic!("Need to connect() to the server first")
         }
@@ -475,9 +471,7 @@ impl PipeClient {
         Ok(client.read_async_owned(buf)?)
     }
 
-    pub fn send_async_owned<T: ?Sized>(mut self, buf: Vec<u8>) -> io::Result<WriteHandle<'static, _PipeClient>>
-        where T: Serialize
-    {
+    pub fn send_async_owned(mut self, buf: Vec<u8>) -> io::Result<WriteHandle<'static, _PipeClient>> {
         if !self.connected {
             panic!("Need to connect() to the server first")
         }
