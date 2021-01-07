@@ -34,6 +34,11 @@ start /MIN /HIGH /B "" %FINEXE% --server -i %PIPECODE% > nul 2>&1
 REM Infinite loop to always replay powerline shell cmd
 :infiniloop
 
+if "!CERRCODE!"=="" (
+    REM Execution hit an error ("was unexpected at this time."), so fix display
+    set CERRCODE=1
+)
+
 REM powerline-go -shell bare -colorize-hostname -error %errorlevel% -newline
 powerline-go -shell bare -colorize-hostname -error %CERRCODE% -newline
 
