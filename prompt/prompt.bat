@@ -23,10 +23,6 @@ set FINEXE="%ENVPATH%%ENVBIN%"
 set PIPECODE=%random%
 set CERRCODE=0
 
-REM Kill server if it's already running
-REM Don't kill it tho cause then we can do multiple CMD windows
-REM taskkill /f /IM "%ENVBIN%"
-
 REM start server in background
 start /MIN /HIGH /B "" %FINEXE% --server -i %PIPECODE% > nul 2>&1
 
