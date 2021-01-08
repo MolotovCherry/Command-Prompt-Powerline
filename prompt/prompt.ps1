@@ -25,8 +25,6 @@ function ShellLoop {
 
             powerline-go -shell bare -colorize-hostname -error $env:cerrcode -newline
 
-            # job takes long to startup. this is a performance improvement
-
             # reset for next iteration
             [String]$cmd = ""
             $env:cerrcode = ""
@@ -58,6 +56,7 @@ function ShellLoop {
             } else {
                 # execute command in command prompt!
                 cmd /V:ON /c "$cmd & set | $finexe --client -i $pipecode -e !errorlevel! -s"
+                # process env vars
                 $res = Invoke-Expression "$finexe --client -i $pipecode -r"
                 foreach ($line in $res.Split("`n")) {
                     if ($line.length -gt 0) {
