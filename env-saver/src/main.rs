@@ -73,6 +73,9 @@ fn main() -> Result<(), io::Error> {
             .long("oldenv")
             .about("Save old environment info to send less data")
             .conflicts_with_all(&["readcode", "readenv", "saveenv", "exitcode"]))
+        .arg(Arg::new("hide-output")
+            .long("hide-output")
+            .about("Don't output any normal messages (errors are still shown)"))
         .get_matches();
 
 
@@ -94,7 +97,9 @@ fn main() -> Result<(), io::Error> {
 
         let mut old_env: Option<HashMap<String, String>> = None;
 
-        println!("[Server listening on pipe: {}]", pipe_name);
+        if !matches.is_present("hide-output") {
+            println!("[Server listening on pipe: {}]", pipe_name);
+        }
         let mut server = PipeServer::new(pipe_name);
 
         server.start().unwrap();
@@ -120,7 +125,7 @@ fn main() -> Result<(), io::Error> {
 
                             // this is a new key , or the value was modified
                             if !old_owned.contains_key(k) || old_owned.get(k).unwrap().ne(v) {
-                                buf.push_str(&*format!("{}={}\n", k, v));
+                                buf.push_str(&*format!("$env:{}=\"{}\"\n", k, v.trim_end()));
                             }
                         }
                     }
@@ -170,7 +175,7 @@ fn main() -> Result<(), io::Error> {
             let mut stdin = io::stdin();
             stdin.read_to_string(&mut buffer)?;
             // place exit code at beginning for one data chunk
-            let exitcode = format!("{}{}\n", "CERRCODE=", matches.value_of("exitcode").unwrap_or("0"));
+            let exitcode = format!("cerrcode={}\r\n", matches.value_of("exitcode").unwrap_or("0"));
             buffer.insert_str(0, &*exitcode);
             client_data.data = Some(buffer);
             client.send(&client_data).unwrap();
