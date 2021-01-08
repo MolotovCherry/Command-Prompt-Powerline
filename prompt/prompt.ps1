@@ -6,6 +6,7 @@
 [String]$finexe = "$PSSCriptRoot\environment_saver.exe"
 [int]$pipecode = Get-Random
 [bool]$firstrun = $true
+[bool]$exit = $false
 # Set up env vars
 $env:TERM = "xterm-256color"
 $env:cerrcode = "0"
@@ -35,7 +36,8 @@ function ShellLoop {
             [String]$cmd = Read-Host
 
             if ($cmd -eq "exit") {
-                exit
+                $exit = $true
+                Exit
             }
 
             if ($cmd -eq "") {
@@ -66,11 +68,13 @@ function ShellLoop {
             }
         }
     } finally {
-        # call itself again
-        # this line is only caught when ^C was pressed
-        Write-Host "^C"
-        $env:cerrcode = "0"
-        ShellLoop
+        if (-Not $exit) {
+            # call itself again
+            # this line is only caught when ^C was pressed
+            Write-Host "^C"
+            $env:cerrcode = "0"
+            ShellLoop
+        }
     }
 }
 
