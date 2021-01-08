@@ -11,7 +11,7 @@ $env:TERM = "xterm-256color"
 $env:cerrcode = "0"
 
 # start the server
-cmd /c start /min /high /b "" $finexe --server -i $pipecode --hide
+cmd /c start /min /high /b "" $finexe --server -i $pipecode --hide-output
 
 
 function ShellLoop {

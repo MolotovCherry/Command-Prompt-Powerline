@@ -52,7 +52,7 @@
                 // Make changes here to the cmd.exe profile.
                 "guid": "{0caa0dad-35be-5f56-a8ff-afceeeaa6101}",
                 "name": "Command Prompt",
-                "commandline": "cmd.exe /c Powershell.exe -File C:/Path/To/Prompt.ps1",
+                "commandline": "Powershell.exe -File C:/Path/To/Prompt.ps1",
                 "hidden": false,
                 "colorScheme": "One Half Dark",
                 //"backgroundImage": "C:/Path/To/Windows.png",

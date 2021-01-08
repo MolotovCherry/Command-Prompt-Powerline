@@ -11,7 +11,7 @@ Powerline Support for good old Command Prompt! Requires Windows Terminal
  4. Edit the Windows Terminal's Command Prompt profile in `settings.json` to reflect the following (there's also an example [settings.json](https://github.com/cherryleafroad/Command-Prompt-Powerline/blob/main/prompt/settings.json)):
  
  ```
- "commandline": "cmd.exe /c Powershell.exe -File C:/Path/To/prompt.ps1"
+ "commandline": "Powershell.exe -File C:/Path/To/prompt.ps1"
  "fontFace": "Cascadia Code PL"
  ```
 
