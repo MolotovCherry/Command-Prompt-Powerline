@@ -172,10 +172,11 @@ fn run_cmd(cmd: &str, old_vars: HashMap<String, String>) -> String {
                 env::set_var(k, v);
             }
         } else {
-            msg.push_str(&*format!("{}", line.trim()))
+            msg.push_str(&*format!("{}\n", line.trim()))
         } 
     }
 
+    msg = msg.trim_end().to_string();
     if msg.eq("") {
         print!("\n");
     }
