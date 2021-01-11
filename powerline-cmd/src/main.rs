@@ -161,7 +161,7 @@ fn run_cmd(cmd: &str, old_vars: HashMap<String, String>) -> String {
         } else if env_follows {
             // process first line as error code
             if errorcode_follows {
-                errorcode = String::from(line).trim().to_string();
+                errorcode = String::from(line.trim());
                 errorcode_follows = false;
                 continue
             }
