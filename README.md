@@ -15,7 +15,8 @@ Powerline Support for good old Command Prompt! Requires Windows Terminal
  "fontFace": "Cascadia Code PL"
  ```
 
-### FAQ
+### Bugs
+- Can't accept batch commands (if you do, it will likely crash. Use it only for regular commands for the time being)
 
 ### Limitations
-- Can't accept multiline input
+- Can't accept multiline input (this is a CMD limitation)
