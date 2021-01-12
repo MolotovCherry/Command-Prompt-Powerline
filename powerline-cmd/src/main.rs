@@ -1,9 +1,8 @@
-use std::{collections::HashMap, env, ffi::OsString};
+use std::{collections::HashMap, env};
 use std::path::Path;
-use std::process::Command;
+use std::process;
 use std::str;
 use std::io;
-use std::io::Write;
 use Iterator;
 use itertools::Itertools;
 
@@ -12,7 +11,9 @@ use clap::{Arg, App};
 use winreg::enums::*;
 use winreg::RegKey;
 
-use subprocess::{Popen, PopenConfig, Redirection};
+use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader, BufWriter};
+use tokio::process::Command;
+use std::process::Stdio;
 
 use winapi::HANDLE;
 use winapi::wincon::CONSOLE_SCREEN_BUFFER_INFO;
@@ -24,7 +25,8 @@ use winapi::DWORD;
 static mut CONSOLE_HANDLE: Option<HANDLE> = None;
 
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let matches = App::new("Powerline CMD")
         .version("1.0")
         .author("Cherryleafroad <13651622+cherryleafroad@users.noreply.github.com>")
@@ -47,15 +49,15 @@ fn main() {
     // this should be the first check as to not write to print
     if let Err(_) = env::var("WT_SESSION") {
         // if not, then re-launch in WT
-        Command::new("wt").args(&[env::current_exe().unwrap().as_os_str()]).spawn().expect("Windows Terminal not installed");
+        process::Command::new("wt").args(&[env::current_exe().unwrap().as_os_str()]).spawn().expect("Windows Terminal not installed");
         return
     }
 
     if matches.is_present("command") {
-        run_cmd(matches.value_of("command").unwrap(), env::vars().collect());
+        run_cmd(matches.value_of("command").unwrap(), env::vars().collect()).await;
         return
     } else if matches.is_present("kommand") {
-        run_cmd(matches.value_of("kommand").unwrap(), env::vars().collect());
+        run_cmd(matches.value_of("kommand").unwrap(), env::vars().collect()).await;
     } else {
         let version = get_version();
         println!(
@@ -76,14 +78,18 @@ fn main() {
 
     let mut exit_code = String::from("0");
     loop {
-        // Powerline prompt
-        let powerline_go = Command::new("powerline-go")
-            .args(&[
+        let mut powerline_go = Command::new("powerline-go");
+        powerline_go.args(&[
                 "-shell", "bare", "-colorize-hostname", "-error", &*exit_code, "-newline"
-            ]).output().expect("Could not run powerline-go. Is it in your PATH?");
-        print!("{}", unsafe {str::from_utf8_unchecked(&powerline_go.stdout)});
+        ]);
+
+        let child = powerline_go.spawn().expect("failed to spawn command");
+        let out = child.wait_with_output().await.expect("child process encountered an error");
+        
+        print!("{}", unsafe {str::from_utf8_unchecked(&out.stdout)});
+        //AsyncWriteExt::flush(&mut out.stdout).await.unwrap();
         // print! does not flush stdout
-        io::stdout().flush().expect("Could not flush stdout");
+        //io::stdout().flush().expect("Could not flush stdout");
 
         // grab user cmd input
         // newline is added, so it needs to be trimmed
@@ -102,9 +108,13 @@ fn main() {
             "cls" => {
                 clear();
                 println!("");
-                continue
+                exit_code = String::from("0");
+                continue;
             }
-            "" => continue,
+            "" => {
+                exit_code = String::from("0");
+                continue;
+            },
             _ => ()
         }
         // Process CD command
@@ -118,73 +128,90 @@ fn main() {
             if path_s == "" {
                 // print current dir
                 println!("{}\n", env::current_dir().unwrap().to_str().unwrap());
-                continue
+                continue;
             } else {
                 match env::set_current_dir(path) {
                     Ok(_) => {
                         println!("");
-                        continue
+                        continue;
                     },
                     Err(_) => {
                         println!("The system cannot find the path specified.\n");
-                        continue
+                        continue;
                     }
                 }
             }
         }
 
-        exit_code = run_cmd(cmd, env::vars().collect());
+        exit_code = run_cmd(cmd, env::vars().collect()).await;
     }
 }
 
-fn run_cmd(cmd: &str, old_vars: HashMap<String, String>) -> String {
-    let env: Vec<(OsString, OsString)> = env::vars_os().collect();
+async fn run_cmd(cmd_str: &str, old_vars: HashMap<String, String>) -> String {
+    let mut cmd = Command::new("cmd");
+    cmd.args(&["/k", cmd_str]);
+    cmd.env("PROMPT", "<EOF>Exit>>\n");
 
-    let mut p = Popen::create(&["cmd", "/k", cmd],
-    PopenConfig {
-                stdout: Redirection::Pipe, stderr: Redirection::Merge,
-                stdin: Redirection::Pipe, env: Some(env), ..Default::default()
+    cmd.stdout(Stdio::piped());
+    cmd.stdin(Stdio::piped());
+
+    let mut child = cmd.spawn()
+        .expect("failed to spawn command");
+
+    let stdout = child.stdout.take()
+        .expect("child did not have a handle to stdout");
+    let stdin = child.stdin.take().expect("child did not have stdin handle");
+
+    let mut reader = BufReader::new(stdout).lines();
+    let mut writer = BufWriter::new(stdin);
+
+    tokio::spawn(async move {
+        child.wait().await.expect("child process encountered an error");
+    });
+
+    // async process of incoming read data
+    let mut marker = false;
+    let mut errorcode = String::from("");
+    let mut check_next_exit_code = false;
+    while let Some(line) = reader.next_line().await.unwrap() {
+        // found end of output, so write a new command to input
+        if line.ends_with("<EOF>Exit>>") {
+            // echo errorlevel and env variables on new input line in order to avoid messing up original command
+            writer.write_all(b"echo %errorlevel% & set & exit\n").await.unwrap();
+            writer.flush().await.unwrap();
+            marker = true;
+        // we found a marker, this is the env section
+        } else if marker {
+            if line != "" && !line.starts_with("PROMPT=") {
+                // this is one of the lines since we \n'd it
+                if line.ends_with("echo %errorlevel% & set & exit") {
+                    check_next_exit_code = true;
+                    continue;
+                } else if check_next_exit_code {
+                    // it was the error code
+                    errorcode = line.trim().to_string();
+                    check_next_exit_code = false;
+                    continue;
+                }
+
+                let (k, v) = line.splitn(2, "=").collect_tuple().unwrap();
+                // new key or changed value for existing key
+                if !old_vars.contains_key(k) || old_vars.get(k).unwrap() != v {
+                    env::set_var(k, v);
+                }
             }
-    ).unwrap();
-
-    // echo errorlevel and env variables on new input line in order to avoid messing up original command
-    let output = p.communicate(Some("echo %errorlevel% && set & exit\n")).unwrap().0.unwrap();
-
-    let mut msg = String::from("");
-    let mut errorcode = String::from("0");
-    let mut env_follows = false;
-    let mut errorcode_follows = false;
-    for line in output.lines() {
-        if line.ends_with("echo %errorlevel% && set & exit") {
-            env_follows = true;
-            errorcode_follows = true;
-        } else if env_follows {
-            // process first line as error code
-            if errorcode_follows {
-                errorcode = String::from(line.trim());
-                errorcode_follows = false;
-                continue
-            }
-
-            let (k, v) = line.splitn(2, "=").collect_tuple().unwrap();
-            // new key or changed value for existing key
-            if !old_vars.contains_key(k) || old_vars.get(k).unwrap() != v {
-                env::set_var(k, v);
-            }
+        // print ordinary output
         } else {
-            msg.push_str(&*format!("{}\n", line.trim()))
-        } 
+            println!("{}", line);
+        }
     }
 
-    msg = msg.trim_end().to_string();
-    if msg.eq("") {
-        print!("\n");
+
+    if errorcode == "" {
+        // cmd returned early because of syntax error, didn't process errorcode
+        errorcode = String::from("1");
+        println!("");
     }
-    else {
-        print!("{}\n\n", msg);
-    }
-    
-    io::stdout().flush().expect("Could not flush stdout");
     //_exit_code
     errorcode
 }
