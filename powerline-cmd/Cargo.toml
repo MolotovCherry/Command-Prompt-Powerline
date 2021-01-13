@@ -17,10 +17,16 @@ winreg = "0.8.0"
 itertools = "0.10.0"
 unicase = "2.6.0"
 subprocess = "0.2.6"
-winapi = "0.2.8"
-kernel32-sys = "0.2.1"
 futures = "0.3.9"
+device_query = "0.2.7"
+rand = "0.8.1"
+regex = "1.4.3"
+lazy_static = "1.4.0"
 
 [dependencies.tokio]
 version = "1.0.1"
-features = ["process", "full"]
+features = ["process", "io-util", "macros", "rt", "rt-multi-thread", "fs"]
+
+[dependencies.winapi]
+version = "0.3.9"
+features = ["wincon", "processenv"]
