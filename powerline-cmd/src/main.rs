@@ -126,11 +126,13 @@ async fn main() {
             multiline = true;
         }
 
-        let cmd = &*_cmd.replace("\r\n", "");
+        if !multiline {
+            _cmd = _cmd.replace("\r\n", "");
+        }
 
 
         // process other commands
-        match &*cmd.to_lowercase() {
+        match &*_cmd.to_lowercase().to_string() {
             // exit #num, not currently supported
             "exit" => {
                 println!("");
@@ -149,7 +151,7 @@ async fn main() {
             _ => ()
         }
 
-        exit_code = run_cmd(cmd, env::vars().collect(), multiline).await;
+        exit_code = run_cmd(&_cmd, env::vars().collect(), multiline).await;
     }
 }
 
@@ -259,6 +261,10 @@ async fn run_cmd(cmd_str: &str, old_vars: HashMap<String, String>, multiline: bo
         }
     }
 
+
+    if multiline {
+        println!("");
+    }
 
     if errorcode == "" {
         // cmd returned early because of syntax error, didn't process errorcode
