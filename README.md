@@ -15,7 +15,7 @@ Powerline Support for good old Command Prompt! Requires Windows Terminal
  "fontFace": "Cascadia Code PL"
  ```
 
-### FAQ
+## FAQ
 #### How do I enter batch / multiline?
 Just hold down shift and press enter and you'll enter multiline mode where you can enter batch as well
 
